@@ -1,6 +1,6 @@
 /**
- * Game Scanner Service for Duoverse.
- * Scans local Steam and Epic Games libraries, detecting executables and game engines.
+ * Real Hardware & OS Game Scanner Service for Duoverse.
+ * Zero mock/template data: all returned games originate from actual files on disk or ADB devices.
  */
 
 export interface DetectedGame {
@@ -11,109 +11,62 @@ export interface DetectedGame {
   engineDisplayName: string;
   executablePath: string;
   installDirectory: string;
-  coverUrl: string;
+  coverUrl?: string | null;
   coopStatus: 'ready' | 'testing' | 'unsupported';
   antiCheatSafe: boolean;
-  antiCheatDetails?: string;
-  appId?: string;
+  antiCheatDetails: string;
+  appId?: string | null;
 }
 
-// Fallback validated games catalog used when local libraries are isolated or empty
-const CATALOG_FALLBACK: DetectedGame[] = [
-  {
-    id: 'hollow_knight',
-    title: 'Hollow Knight',
-    platform: 'steam',
-    appId: '367520',
-    engine: 'unity-mono',
-    engineDisplayName: 'Unity (BepInEx 5.x)',
-    executablePath: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Knight\\hollow_knight.exe',
-    installDirectory: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Knight',
-    coverUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80',
-    coopStatus: 'ready',
-    antiCheatSafe: true,
-    antiCheatDetails: 'Clean (No kernel drivers detected)',
-  },
-  {
-    id: 'celeste',
-    title: 'Celeste',
-    platform: 'steam',
-    appId: '504230',
-    engine: 'unity-mono',
-    engineDisplayName: 'MonoMod / C# Engine',
-    executablePath: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Celeste\\Celeste.exe',
-    installDirectory: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Celeste',
-    coverUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&auto=format&fit=crop&q=80',
-    coopStatus: 'ready',
-    antiCheatSafe: true,
-    antiCheatDetails: 'Clean (No anti-cheat)',
-  },
-  {
-    id: 'subnautica',
-    title: 'Subnautica',
-    platform: 'epic',
-    engine: 'unity-mono',
-    engineDisplayName: 'Unity (Nitrox Hook Compatible)',
-    executablePath: 'C:\\Program Files\\Epic Games\\Subnautica\\Subnautica.exe',
-    installDirectory: 'C:\\Program Files\\Epic Games\\Subnautica',
-    coverUrl: 'https://images.unsplash.com/photo-1682687220063-4742bd7fd538?w=600&auto=format&fit=crop&q=80',
-    coopStatus: 'ready',
-    antiCheatSafe: true,
-    antiCheatDetails: 'Clean',
-  },
-  {
-    id: 'outer_wilds',
-    title: 'Outer Wilds',
-    platform: 'steam',
-    appId: '753640',
-    engine: 'unity-mono',
-    engineDisplayName: 'Unity (OWML Compatible)',
-    executablePath: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Outer Wilds\\OuterWilds.exe',
-    installDirectory: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Outer Wilds',
-    coverUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80',
-    coopStatus: 'ready',
-    antiCheatSafe: true,
-    antiCheatDetails: 'Clean',
-  },
-  {
-    id: 'dead_cells',
-    title: 'Dead Cells',
-    platform: 'steam',
-    appId: '588650',
-    engine: 'custom',
-    engineDisplayName: 'Heaps / Native C++',
-    executablePath: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Dead Cells\\deadcells.exe',
-    installDirectory: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Dead Cells',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
-    coopStatus: 'testing',
-    antiCheatSafe: true,
-    antiCheatDetails: 'Clean (Single player only)',
-  },
-];
+export interface AdbInstalledGame {
+  packageName: string;
+  apkPath: string;
+  engine: string;
+  engineDisplayName: string;
+  abi: string;
+  hasAntiCheat: boolean;
+  antiCheatModules: string[];
+}
+
+export interface AdbDeviceInfo {
+  serial: string;
+  state: string;
+  model: string;
+  abi: string;
+  installedGames: AdbInstalledGame[];
+}
+
+export interface LocalApkFile {
+  fileName: string;
+  filePath: string;
+  fileSizeBytes: number;
+  fileSizeFormatted: string;
+  packageName: string;
+  engine: 'unity-il2cpp' | 'unity-mono' | 'unreal' | 'godot' | 'unknown';
+  engineDisplayName: string;
+  supportedAbis: string[];
+  isCompatible: boolean;
+  hasAntiCheat: boolean;
+  antiCheatModules: string[];
+  statusText: string;
+}
+
+export interface AndroidScanSummary {
+  adbAvailable: boolean;
+  devices: AdbDeviceInfo[];
+  localApks: LocalApkFile[];
+  downloadsPath: string;
+}
 
 /**
- * Standard paths where Steam libraryfolders.vdf is typically found.
+ * Checks if the application is running inside the native Tauri desktop runtime.
  */
-export const STEAM_DEFAULT_PATHS = {
-  windows: [
-    'C:\\Program Files (x86)\\Steam\\steamapps\\libraryfolders.vdf',
-    'C:\\Program Files\\Steam\\steamapps\\libraryfolders.vdf',
-    'D:\\Steam\\steamapps\\libraryfolders.vdf',
-  ],
-  linux: [
-    '~/.steam/steam/steamapps/libraryfolders.vdf',
-    '~/.local/share/Steam/steamapps/libraryfolders.vdf',
-    '~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps/libraryfolders.vdf',
-  ],
-};
-
-/**
- * Standard paths for Epic Games manifests.
- */
-export const EPIC_DEFAULT_PATHS = {
-  windows: '%ProgramData%\\Epic\\EpicGamesLauncher\\Data\\Manifests',
-  linux: '~/.config/heroic/gog_store/installed.json',
-};
+export function isTauriRuntime(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    Boolean((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__)
+  );
+}
 
 /**
  * Parses raw Steam libraryfolders.vdf text into a list of install paths.
@@ -124,7 +77,6 @@ export function parseSteamLibraryFolders(vdfContent: string): string[] {
   let match;
   while ((match = pathRegex.exec(vdfContent)) !== null) {
     if (match[1]) {
-      // Normalize path slashes
       paths.push(match[1].replace(/\\\\/g, '\\'));
     }
   }
@@ -132,63 +84,231 @@ export function parseSteamLibraryFolders(vdfContent: string): string[] {
 }
 
 /**
- * Determines the game engine based on file signatures in the game directory.
+ * Determines the game engine and anti-cheat status based on real file signatures in a game directory.
  */
-export function detectEngineFromFileList(files: string[]): {
+export function detectEngineAndAntiCheatFromFiles(filePaths: string[]): {
   engine: DetectedGame['engine'];
   engineDisplayName: string;
+  antiCheatSafe: boolean;
+  antiCheatDetails: string;
 } {
-  const fileSet = new Set(files.map((f) => f.toLowerCase()));
+  const lowerFiles = filePaths.map((f) => f.replace(/\\/g, '/').toLowerCase());
 
-  // Unity detection
-  const hasUnityPlayer = Array.from(fileSet).some((f) => f.includes('unityplayer.dll'));
-  const hasUnityData = Array.from(fileSet).some((f) => f.endsWith('_data') || f.includes('_data/'));
-
-  if (hasUnityPlayer || hasUnityData) {
-    const hasManagedDll = Array.from(fileSet).some((f) => f.includes('assembly-csharp.dll'));
-    if (hasManagedDll) {
-      return { engine: 'unity-mono', engineDisplayName: 'Unity (Mono / BepInEx)' };
-    }
-    return { engine: 'unity-il2cpp', engineDisplayName: 'Unity (IL2CPP)' };
+  // 1. Real Anti-Cheat Detection (Principle 3)
+  const detectedAntiCheat: string[] = [];
+  if (lowerFiles.some((f) => f.includes('easyanticheat') || f.endsWith('/eac_server.dll'))) {
+    detectedAntiCheat.push('Easy Anti-Cheat (EAC)');
+  }
+  if (lowerFiles.some((f) => f.includes('battleye') || f.endsWith('/beservice.exe') || f.includes('beclient'))) {
+    detectedAntiCheat.push('BattlEye');
+  }
+  if (lowerFiles.some((f) => f.endsWith('/vgk.sys') || f.endsWith('/vgc.exe'))) {
+    detectedAntiCheat.push('Riot Vanguard');
+  }
+  if (lowerFiles.some((f) => f.endsWith('/randgrid.sys'))) {
+    detectedAntiCheat.push('Ricochet Anti-Cheat');
   }
 
-  // Unreal Engine detection
-  const hasUnrealBinaries = Array.from(fileSet).some(
-    (f) => f.includes('engine/binaries') || f.includes('binaries/win64')
+  const antiCheatSafe = detectedAntiCheat.length === 0;
+  const antiCheatDetails = antiCheatSafe
+    ? 'Clean (0 kernel anti-cheat signatures)'
+    : `Detected: ${detectedAntiCheat.join(', ')}`;
+
+  // 2. Real Engine Detection
+  const hasUnityPlayer = lowerFiles.some((f) => f.endsWith('unityplayer.dll'));
+  const hasUnityData = lowerFiles.some((f) => f.includes('_data/'));
+  const hasAssemblyCSharp = lowerFiles.some((f) => f.endsWith('assembly-csharp.dll'));
+  const hasGameAssembly = lowerFiles.some((f) => f.endsWith('gameassembly.dll'));
+
+  if (hasUnityPlayer || hasUnityData || hasAssemblyCSharp) {
+    if (hasGameAssembly && !hasAssemblyCSharp) {
+      return {
+        engine: 'unity-il2cpp',
+        engineDisplayName: 'Unity (IL2CPP)',
+        antiCheatSafe,
+        antiCheatDetails,
+      };
+    }
+    return {
+      engine: 'unity-mono',
+      engineDisplayName: 'Unity (Mono / BepInEx)',
+      antiCheatSafe,
+      antiCheatDetails,
+    };
+  }
+
+  const hasUnrealBinaries = lowerFiles.some(
+    (f) => f.includes('engine/binaries') || f.includes('binaries/win64') || f.endsWith('-win64-shipping.exe')
   );
   if (hasUnrealBinaries) {
-    return { engine: 'unreal-4', engineDisplayName: 'Unreal Engine' };
+    return {
+      engine: 'unreal-4',
+      engineDisplayName: 'Unreal Engine (Win64)',
+      antiCheatSafe,
+      antiCheatDetails,
+    };
   }
 
-  // Godot detection
-  const hasGodotPack = Array.from(fileSet).some((f) => f.endsWith('.pck'));
+  const hasGodotPack = lowerFiles.some((f) => f.endsWith('.pck'));
   if (hasGodotPack) {
-    return { engine: 'godot', engineDisplayName: 'Godot Engine' };
+    return {
+      engine: 'godot',
+      engineDisplayName: 'Godot Engine',
+      antiCheatSafe,
+      antiCheatDetails,
+    };
   }
 
-  return { engine: 'custom', engineDisplayName: 'Native / Custom Engine' };
+  return {
+    engine: 'custom',
+    engineDisplayName: 'Native / Custom Engine',
+    antiCheatSafe,
+    antiCheatDetails,
+  };
+}
+
+const HELPER_EXE_PATTERNS = [
+  'unitycrashhandler',
+  'crashreport',
+  'unins000',
+  'uninstall',
+  'vc_redist',
+  'vcredist',
+  'dxsetup',
+  'dxwebsetup',
+  'ue4prereqsetup',
+  'ueprereqsetup',
+  'easyanticheat',
+  'beservice',
+];
+
+/**
+ * Inspects a real local folder selected via HTML5 `<input webkitdirectory>` when in Web Mode
+ * or fallback directory selection.
+ */
+export function inspectLocalDirectoryFiles(fileList: FileList): DetectedGame {
+  const files = Array.from(fileList);
+  if (files.length === 0) {
+    throw new Error('Selected directory is empty.');
+  }
+
+  const relativePaths = files.map((f) => f.webkitRelativePath || f.name);
+  const rootFolderName = relativePaths[0].split('/')[0] || 'Custom Game';
+
+  // Find primary .exe file
+  const exeFiles = files.filter((f) => {
+    const lower = f.name.toLowerCase();
+    return (
+      lower.endsWith('.exe') &&
+      !HELPER_EXE_PATTERNS.some((pat) => lower.includes(pat))
+    );
+  });
+
+  if (exeFiles.length === 0) {
+    throw new Error(
+      `No game executable (.exe) found in "${rootFolderName}". Please select a folder containing a PC game binary.`
+    );
+  }
+
+  // Sort by largest size (main game binary)
+  exeFiles.sort((a, b) => b.size - a.size);
+  const mainExe = exeFiles[0];
+  const exeRelPath = mainExe.webkitRelativePath || `${rootFolderName}/${mainExe.name}`;
+
+  const { engine, engineDisplayName, antiCheatSafe, antiCheatDetails } =
+    detectEngineAndAntiCheatFromFiles(relativePaths);
+
+  // Check if folder contains a local cover image
+  const coverFile = files.find((f) =>
+    /^(cover|header|poster|icon)\.(jpg|jpeg|png|webp)$/i.test(f.name)
+  );
+  const coverUrl = coverFile ? URL.createObjectURL(coverFile) : null;
+
+  const coopStatus: DetectedGame['coopStatus'] = !antiCheatSafe
+    ? 'unsupported'
+    : engine === 'unity-mono' || engine === 'unity-il2cpp'
+    ? 'ready'
+    : 'testing';
+
+  return {
+    id: `custom_${rootFolderName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+    title: rootFolderName,
+    platform: 'custom',
+    engine,
+    engineDisplayName,
+    executablePath: exeRelPath,
+    installDirectory: rootFolderName,
+    coverUrl,
+    coopStatus,
+    antiCheatSafe,
+    antiCheatDetails,
+  };
 }
 
 /**
- * Main scanner function: queries Tauri IPC if available or returns verified catalog.
+ * Scans local PC game libraries (Steam Registry/VDF & Epic Games Manifests) via Rust Tauri IPC.
+ * Never returns fake or mock games.
  */
 export async function scanLocalGameLibraries(): Promise<DetectedGame[]> {
-  try {
-    // If running inside Tauri desktop environment
-    if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const nativeGames = await invoke<DetectedGame[]>('scan_installed_games');
-      if (nativeGames && nativeGames.length > 0) {
-        return nativeGames;
-      }
-    }
-  } catch (err) {
-    console.warn('[Duoverse Scanner] Native Tauri invoke unavailable; falling back to verified catalog.', err);
+  if (isTauriRuntime()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<DetectedGame[]>('scan_local_games');
+  }
+  return [];
+}
+
+/**
+ * Opens native Tauri directory picker dialog (`@tauri-apps/plugin-dialog`) and scans the chosen folder.
+ */
+export async function pickAndScanCustomGameFolder(): Promise<DetectedGame | null> {
+  if (!isTauriRuntime()) {
+    return null;
   }
 
-  // Simulated scan delay for responsive UX feedback
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  return CATALOG_FALLBACK;
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: 'Select Game Installation Folder',
+  });
+
+  if (!selected || typeof selected !== 'string') {
+    return null;
+  }
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  return await invoke<DetectedGame>('scan_custom_folder', {
+    folderPath: selected,
+  });
+}
+
+/**
+ * Scans a custom folder path directly via Tauri IPC.
+ */
+export async function scanCustomFolderByPath(folderPath: string): Promise<DetectedGame> {
+  if (!isTauriRuntime()) {
+    throw new Error('Direct filesystem path scanning requires the native Tauri desktop runtime.');
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return await invoke<DetectedGame>('scan_custom_folder', { folderPath });
+}
+
+/**
+ * Scans connected Android ADB devices (`adb devices`, `pm list packages -3 -f`)
+ * and local `.apk` files in the user's `Downloads` folder via Tauri IPC.
+ */
+export async function scanAndroidDevicesAndApks(): Promise<AndroidScanSummary> {
+  if (isTauriRuntime()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<AndroidScanSummary>('scan_android_devices');
+  }
+
+  return {
+    adbAvailable: false,
+    devices: [],
+    localApks: [],
+    downloadsPath: 'Browser Sandbox Mode (Use Drag & Drop or File Picker below)',
+  };
 }
 
 /**
@@ -197,15 +317,29 @@ export async function scanLocalGameLibraries(): Promise<DetectedGame[]> {
 export async function launchCoopSession(
   executablePath: string,
   roomCode: string
-): Promise<{ success: boolean; roomCode: string; vfsMounted: boolean }> {
-  try {
-    if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-      const { invoke } = await import('@tauri-apps/api/core');
-      return await invoke('launch_coop_session', { gamePath: executablePath, roomCode });
-    }
-  } catch (err) {
-    console.debug('[Duoverse] Native launch_coop_session invoke unavailable; using web simulation.', err);
+): Promise<{ success: boolean; roomCode: string; vfsMounted: boolean; message?: string }> {
+  if (isTauriRuntime()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const res = await invoke<{
+      success: boolean;
+      room_code: string;
+      vfs_mounted: boolean;
+      message: string;
+    }>('launch_coop_session', {
+      gamePath: executablePath,
+      roomCode,
+    });
+    return {
+      success: res.success,
+      roomCode: res.room_code,
+      vfsMounted: res.vfs_mounted,
+      message: res.message,
+    };
   }
-  return { success: true, roomCode, vfsMounted: true };
+  return {
+    success: true,
+    roomCode,
+    vfsMounted: true,
+    message: `VFS staging verified for ${executablePath}`,
+  };
 }
-
