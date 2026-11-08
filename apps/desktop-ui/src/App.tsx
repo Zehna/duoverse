@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Loader2,
   FolderOpen,
+  Tv,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import { useGameScanner } from '@/hooks/useGameScanner';
 import { useLobby } from '@/hooks/useLobby';
 import { AndroidDropzone } from '@/components/AndroidDropzone';
 import { ActivateCoopModal } from '@/components/ActivateCoopModal';
+import { CouchCoopTab } from '@/components/CouchCoopTab';
 
 export function App() {
   const {
@@ -51,7 +53,7 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGame, setSelectedGame] = useState<DetectedGame | null>(null);
   const [isCoopModalOpen, setIsCoopModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'library' | 'android' | 'lobby' | 'telemetry'>('library');
+  const [activeTab, setActiveTab] = useState<'library' | 'couch' | 'android' | 'lobby' | 'telemetry'>('library');
 
   // Hidden HTML5 directory input for Web Sandbox mode (or manual directory selection)
   const directoryInputRef = useRef<HTMLInputElement>(null);
@@ -134,7 +136,7 @@ export function App() {
               </div>
               <div>
                 <h1 className="text-sm font-semibold tracking-tight text-zinc-100">DUOVERSE</h1>
-                <p className="text-[11px] font-mono text-zinc-500">v0.1.0 • OS SCANNER</p>
+                <p className="text-[11px] font-mono text-zinc-500">v0.2.0 • STRATEGIC PILLARS</p>
               </div>
             </div>
 
@@ -154,6 +156,22 @@ export function App() {
                 <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800">
                   {games.length}
                 </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('couch')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                  activeTab === 'couch'
+                    ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/60 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Tv className="w-4 h-4 text-amber-400" /> Couch Co-op
+                </span>
+                <Badge variant="online" className="text-[9px] px-1 py-0 font-mono">
+                  SPLIT
+                </Badge>
               </button>
 
               <button
@@ -569,6 +587,15 @@ export function App() {
                   </Card>
                 )}
               </section>
+            )}
+
+            {/* TAB: COUCH CO-OP & SPLIT-SCREEN MULTI-INSTANCE */}
+            {activeTab === 'couch' && (
+              <CouchCoopTab
+                games={games}
+                selectedGame={selectedGame}
+                onSelectGame={setSelectedGame}
+              />
             )}
 
             {/* TAB 2: ANDROID APK & ADB SCANNER */}

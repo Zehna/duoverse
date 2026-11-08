@@ -1,4 +1,6 @@
 mod scanner;
+pub mod save_sync;
+pub mod couch_coop;
 
 use scanner::{AndroidScanSummary, DetectedGame, LocalApkFile};
 use serde::{Deserialize, Serialize};
@@ -10,6 +12,9 @@ pub struct CoopLaunchResult {
     pub success: bool,
     pub room_code: String,
     pub vfs_mounted: bool,
+    pub hud_enabled: bool,
+    pub save_sync_enabled: bool,
+    pub couch_split_enabled: bool,
     pub message: String,
 }
 
@@ -49,21 +54,34 @@ fn analyze_apk_path(file_path: String) -> Result<LocalApkFile, String> {
 
 /// Activates VFS layer and prepares in-memory hooking without disk alteration.
 #[tauri::command]
-fn launch_coop_session(game_path: String, room_code: String) -> Result<CoopLaunchResult, String> {
+fn launch_coop_session(
+    game_path: String,
+    room_code: String,
+    enable_hud: Option<bool>,
+    sync_save: Option<bool>,
+    couch_split: Option<bool>,
+) -> Result<CoopLaunchResult, String> {
     let target = Path::new(&game_path);
     if !target.exists() {
         return Err(format!("Executable not found on disk: {}", game_path));
     }
 
+    let hud = enable_hud.unwrap_or(true);
+    let s_sync = sync_save.unwrap_or(true);
+    let c_split = couch_split.unwrap_or(false);
+
     println!(
-        "[Duoverse Native] Preparing non-destructive VFS for: {} in Room {}",
-        game_path, room_code
+        "[Duoverse Native] Preparing non-destructive VFS for: {} in Room {} (HUD: {}, SaveSync: {}, CouchSplit: {})",
+        game_path, room_code, hud, s_sync, c_split
     );
 
     Ok(CoopLaunchResult {
         success: true,
         room_code,
         vfs_mounted: true,
+        hud_enabled: hud,
+        save_sync_enabled: s_sync,
+        couch_split_enabled: c_split,
         message: format!(
             "VFS layer active. Original game executable at '{}' remains 100% pristine.",
             game_path
@@ -104,6 +122,44 @@ fn process_android_apk(apk_path: String) -> Result<ApkRepackResult, String> {
     }
 }
 
+// ==========================================
+// Pillar 2: Save Game Sync Tauri Commands
+// ==========================================
+
+#[tauri::command]
+fn detect_save_location(game_title: String, app_id: Option<String>) -> Result<Option<save_sync::SaveLocation>, String> {
+    Ok(save_sync::detect_game_save_location(&game_title, app_id.as_deref()))
+}
+
+#[tauri::command]
+fn create_save_backup(save_dir: String) -> Result<save_sync::SaveBackupResult, String> {
+    save_sync::create_pre_session_backup(Path::new(&save_dir))
+}
+
+#[tauri::command]
+fn build_save_delta(save_dir: String, game_title: String, app_id: Option<String>) -> Result<save_sync::SaveSyncPacket, String> {
+    save_sync::build_save_sync_delta(Path::new(&save_dir), &game_title, app_id.as_deref())
+}
+
+#[tauri::command]
+fn apply_save_delta(target_dir: String, packet: save_sync::SaveSyncPacket) -> Result<usize, String> {
+    save_sync::apply_save_sync_delta(Path::new(&target_dir), &packet)
+}
+
+// ==========================================
+// Pillar 4: Couch Co-Op Tauri Commands
+// ==========================================
+
+#[tauri::command]
+fn calculate_split_layout(monitor_width: i32, monitor_height: i32, mode: String) -> Result<couch_coop::SplitLayoutResult, String> {
+    Ok(couch_coop::calculate_split_layout(monitor_width, monitor_height, &mode))
+}
+
+#[tauri::command]
+fn launch_couch_coop(exe_path: String, mode: String, monitor_width: i32, monitor_height: i32) -> Result<couch_coop::CouchLaunchResult, String> {
+    couch_coop::launch_couch_instances(&exe_path, &mode, monitor_width, monitor_height)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -115,7 +171,13 @@ pub fn run() {
             scan_android_devices,
             analyze_apk_path,
             launch_coop_session,
-            process_android_apk
+            process_android_apk,
+            detect_save_location,
+            create_save_backup,
+            build_save_delta,
+            apply_save_delta,
+            calculate_split_layout,
+            launch_couch_coop
         ])
         .run(tauri::generate_context!())
         .expect("error while running Duoverse launcher");

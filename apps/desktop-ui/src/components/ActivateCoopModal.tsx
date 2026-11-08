@@ -6,6 +6,9 @@ import {
   Check,
   Loader2,
   CheckCircle2,
+  Layers,
+  Save,
+  Gamepad2,
 } from 'lucide-react';
 import {
   Dialog,
@@ -42,6 +45,11 @@ export function ActivateCoopModal({
   const [isLaunching, setIsLaunching] = useState(false);
   const [vfsStage, setVfsStage] = useState<number>(0);
 
+  // Pillar 1, 2, 4 Tactical Toggles
+  const [enableHud, setEnableHud] = useState(true);
+  const [syncSave, setSyncSave] = useState(true);
+  const [couchSplit, setCouchSplit] = useState(false);
+
   if (!game) return null;
 
   const handleLaunch = async () => {
@@ -50,7 +58,15 @@ export function ActivateCoopModal({
     await new Promise((r) => setTimeout(r, 400));
 
     setVfsStage(2); // Mounting VFS
-    await launchCoopSession(game.executablePath, role === 'host' ? roomCode : joinCodeInput);
+    await launchCoopSession(
+      game.executablePath,
+      role === 'host' ? roomCode : joinCodeInput,
+      {
+        enableHud,
+        syncSave,
+        couchSplit,
+      }
+    );
     await new Promise((r) => setTimeout(r, 400));
 
     setVfsStage(3); // In-memory injection
@@ -149,6 +165,52 @@ export function ActivateCoopModal({
               </p>
             </div>
           )}
+
+          {/* Tactical v0.2.0 Engine Options */}
+          <div className="p-3 rounded-md bg-zinc-950/90 border border-zinc-800/80 space-y-2.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold block">
+              Session Features & Architecture
+            </span>
+
+            <label className="flex items-center gap-2.5 text-xs text-zinc-300 hover:text-zinc-100 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enableHud}
+                onChange={(e) => setEnableHud(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-900 text-sky-500 focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5"
+              />
+              <span className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-sky-400" />
+                Enable In-Game Tactical HUD (<kbd className="font-mono text-[10px] bg-zinc-800 px-1 rounded text-zinc-400">Shift + Tab</kbd>)
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2.5 text-xs text-zinc-300 hover:text-zinc-100 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={syncSave}
+                onChange={(e) => setSyncSave(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5"
+              />
+              <span className="flex items-center gap-1.5">
+                <Save className="w-3.5 h-3.5 text-emerald-400" />
+                Sync Save Game to Client on Session End
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2.5 text-xs text-zinc-300 hover:text-zinc-100 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={couchSplit}
+                onChange={(e) => setCouchSplit(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5"
+              />
+              <span className="flex items-center gap-1.5">
+                <Gamepad2 className="w-3.5 h-3.5 text-amber-400" />
+                Launch in Couch Split-Screen (1 PC, 2 Controllers)
+              </span>
+            </label>
+          </div>
 
           {/* VFS & Injection Staging Progression */}
           {vfsStage > 0 && (

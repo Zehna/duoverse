@@ -316,25 +316,50 @@ export async function scanAndroidDevicesAndApks(): Promise<AndroidScanSummary> {
 /**
  * Native launcher helper invoking Tauri VFS initialization.
  */
+/**
+ * Native launcher helper invoking Tauri VFS initialization.
+ */
 export async function launchCoopSession(
   executablePath: string,
-  roomCode: string
-): Promise<{ success: boolean; roomCode: string; vfsMounted: boolean; message?: string }> {
+  roomCode: string,
+  options?: {
+    enableHud?: boolean;
+    syncSave?: boolean;
+    couchSplit?: boolean;
+  }
+): Promise<{
+  success: boolean;
+  roomCode: string;
+  vfsMounted: boolean;
+  hudEnabled?: boolean;
+  saveSyncEnabled?: boolean;
+  couchSplitEnabled?: boolean;
+  message?: string;
+}> {
   if (isTauriRuntime()) {
     const { invoke } = await import('@tauri-apps/api/core');
     const res = await invoke<{
       success: boolean;
       room_code: string;
       vfs_mounted: boolean;
+      hud_enabled: boolean;
+      save_sync_enabled: boolean;
+      couch_split_enabled: boolean;
       message: string;
     }>('launch_coop_session', {
       gamePath: executablePath,
       roomCode,
+      enableHud: options?.enableHud ?? true,
+      syncSave: options?.syncSave ?? true,
+      couchSplit: options?.couchSplit ?? false,
     });
     return {
       success: res.success,
       roomCode: res.room_code,
       vfsMounted: res.vfs_mounted,
+      hudEnabled: res.hud_enabled,
+      saveSyncEnabled: res.save_sync_enabled,
+      couchSplitEnabled: res.couch_split_enabled,
       message: res.message,
     };
   }
@@ -342,6 +367,72 @@ export async function launchCoopSession(
     success: true,
     roomCode,
     vfsMounted: true,
+    hudEnabled: options?.enableHud ?? true,
+    saveSyncEnabled: options?.syncSave ?? true,
+    couchSplitEnabled: options?.couchSplit ?? false,
     message: `VFS staging verified for ${executablePath}`,
+  };
+}
+
+export interface SplitLayoutInfo {
+  mode: string;
+  instance1: { x: number; y: number; width: number; height: number };
+  instance2: { x: number; y: number; width: number; height: number };
+}
+
+export async function calculateSplitLayout(
+  monitorWidth: number,
+  monitorHeight: number,
+  mode: 'Horizontal' | 'Vertical'
+): Promise<SplitLayoutInfo> {
+  if (isTauriRuntime()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<SplitLayoutInfo>('calculate_split_layout', {
+      monitorWidth,
+      monitorHeight,
+      mode,
+    });
+  }
+
+  // Fallback calculation for browser preview
+  const isHoriz = mode === 'Horizontal';
+  return {
+    mode,
+    instance1: {
+      x: 0,
+      y: 0,
+      width: isHoriz ? monitorWidth : Math.floor(monitorWidth / 2),
+      height: isHoriz ? Math.floor(monitorHeight / 2) : monitorHeight,
+    },
+    instance2: {
+      x: isHoriz ? 0 : Math.floor(monitorWidth / 2),
+      y: isHoriz ? Math.floor(monitorHeight / 2) : 0,
+      width: isHoriz ? monitorWidth : monitorWidth - Math.floor(monitorWidth / 2),
+      height: isHoriz ? monitorHeight - Math.floor(monitorHeight / 2) : monitorHeight,
+    },
+  };
+}
+
+export async function launchCouchCoop(
+  exePath: string,
+  mode: 'Horizontal' | 'Vertical',
+  monitorWidth: number = 1920,
+  monitorHeight: number = 1080
+): Promise<{ success: boolean; message: string; instanceCount: number; layout: SplitLayoutInfo }> {
+  if (isTauriRuntime()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke('launch_couch_coop', {
+      exePath,
+      mode,
+      monitorWidth,
+      monitorHeight,
+    });
+  }
+  const layout = await calculateSplitLayout(monitorWidth, monitorHeight, mode);
+  return {
+    success: true,
+    message: `Dual instances spawned in ${mode} mode (Gamepad 1: Pad 0, Gamepad 2: Pad 1)`,
+    instanceCount: 2,
+    layout,
   };
 }
