@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import type { DetectedGame } from '@/services/gameScanner';
+import { type DetectedGame, launchCoopSession } from '@/services/gameScanner';
 
 interface ActivateCoopModalProps {
   game: DetectedGame | null;
@@ -50,10 +50,11 @@ export function ActivateCoopModal({
     await new Promise((r) => setTimeout(r, 400));
 
     setVfsStage(2); // Mounting VFS
-    await new Promise((r) => setTimeout(r, 500));
+    await launchCoopSession(game.executablePath, role === 'host' ? roomCode : joinCodeInput);
+    await new Promise((r) => setTimeout(r, 400));
 
     setVfsStage(3); // In-memory injection
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 500));
 
     setVfsStage(4); // SDR lobby active
     setIsLaunching(false);

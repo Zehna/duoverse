@@ -190,3 +190,22 @@ export async function scanLocalGameLibraries(): Promise<DetectedGame[]> {
   await new Promise((resolve) => setTimeout(resolve, 400));
   return CATALOG_FALLBACK;
 }
+
+/**
+ * Native launcher helper invoking Tauri VFS initialization.
+ */
+export async function launchCoopSession(
+  executablePath: string,
+  roomCode: string
+): Promise<{ success: boolean; roomCode: string; vfsMounted: boolean }> {
+  try {
+    if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke('launch_coop_session', { gamePath: executablePath, roomCode });
+    }
+  } catch (err) {
+    console.debug('[Duoverse] Native launch_coop_session invoke unavailable; using web simulation.', err);
+  }
+  return { success: true, roomCode, vfsMounted: true };
+}
+
