@@ -1,28 +1,42 @@
 # Duoverse Netcode (`core/netcode`)
 
-Low-latency P2P synchronization protocol, 6-character room code lobby management, and multi-transport network engine for Duoverse.
+Low-latency P2P synchronization protocol, 6-character room code lobby management, and cross-platform network engine connecting **PC (Windows)** and **Mobile (Android)** in unified co-op sessions.
 
 ---
 
-## Transport Layers
+## Cross-Platform Compilation Targets
 
-### 1. Steam Datagram Relay (SDR)
-- **Zero-Port Forwarding:** Routes traffic through Valve's worldwide relay network without requiring open router ports or exposing client IP addresses.
-- **Spacewar Pattern (AppID 480):** Utilizes the standard development AppID for Steam matchmaking lobbies, enabling any Steam user to connect with friends instantly.
-- **Room Code Mapping:** Encodes 64-bit Steam Lobby IDs into human-friendly 6-character room codes (e.g., `DUO-9B4`).
+Written in portable, standards-compliant C++20 with strict binary endian safety:
 
-### 2. WebRTC Data Channels (Fallback)
-- **DRM-Free / Non-Steam Support:** For games running outside of Steam (GOG, itch.io, independent builds).
-- **ICE / STUN / TURN:** Automatically punches through standard and symmetric NATs.
+| Target Platform | Compilation Artifact | Primary Transport |
+|---|---|---|
+| **Windows PC** | `duoverse_netcode.dll` | Steam Datagram Relay (SDR AppID 480) & WebRTC |
+| **Android (ARM64 / ARM32)** | `libduoverse_netcode.so` (Android NDK) | WebRTC Data Channels (STUN / TURN) |
+| **Linux (Native / Steam Deck)** | `libduoverse_netcode.so` | Steam Datagram Relay (SDR) & WebRTC |
 
 ---
 
-## Synchronization Protocol
+## Cross-Play Architecture (PC & Android)
 
-- **Host-Authority Model:**
-  - **Host (P1):** Serializes world tick snapshots (NPC positions, health, active quests, world item states) at 20-30 Hz.
-  - **Clients (P2+):** Send local input state vectors (movement axis, buttons pressed, avatar aim angle) at 60 Hz.
-- **Interpolation & Dead Reckoning:** Smooths remote player movements on clients using exponential moving average and cubic spline extrapolation.
+Duoverse allows PC and Android gamers to join the **exact same 6-character Room Code** (e.g., `DUO-7K2`):
+
+```
+       [Room Code: DUO-7K2]
+               │
+     ┌─────────┴─────────┐
+     ▼                   ▼
+[PC Player]        [Android Player]
+Windows (.dll)     Android (.so)
+     │                   │
+     └─────► WebRTC ◄────┘
+        (Data Channels)
+```
+
+1. **Unified Packet Serialization:** All network packets (`PacketHeader`, `ClientInputPayload`, `WorldSnapshotHeader`) use strict 1-byte packing (`#pragma pack(push, 1)`) and fixed-width types to guarantee byte-for-byte binary compatibility across x86_64 and ARM64 architectures.
+2. **Mobile Touch & Gamepad Normalization:** Supports both traditional keyboard/gamepad axes and touch input coordinates (`ClientTouchPayload`).
+3. **Hybrid Transport Bridge:**
+   - PC-to-PC connections leverage Valve's low-latency Steam Datagram Relay network.
+   - Cross-play connections between PC and Android leverage WebRTC data channels with ICE NAT traversal.
 
 ---
 
@@ -34,13 +48,34 @@ core/netcode/
 ├── README.md
 ├── include/
 │   └── duoverse/
+│       ├── crossplay.hpp    # Cross-play session manager (PC + Android)
+│       ├── export.hpp       # DUOVERSE_API visibility macros
 │       ├── lobby.hpp        # Room code generator and lobby state machine
-│       ├── netcode.hpp      # High-level netcode session manager
-│       ├── packet.hpp       # Packet serialization and schema
-│       └── sdr_transport.hpp# Steam Datagram Relay (AppID 480) wrapper
+│       ├── packet.hpp       # Binary packed packet schemas
+│       └── sdr_transport.hpp# Steam Datagram Relay wrapper
 └── src/
+    ├── crossplay.cpp        # Multiplatform peer routing
     ├── lobby.cpp            # Room code encoder / decoder
-    ├── netcode.cpp          # Tick scheduler and replication loop
-    ├── packet.cpp           # Binary packing
     └── sdr_transport.cpp    # Steamworks API integration
+```
+
+---
+
+## Building
+
+### Windows (MSVC / Clang)
+```bash
+cmake -B build
+cmake --build build --config Release
+# Produces duoverse_netcode.dll
+```
+
+### Android (NDK r25+)
+```bash
+cmake -B build-android \
+  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+  -DANDROID_ABI=arm64-v8a \
+  -DANDROID_PLATFORM=android-26
+cmake --build build-android
+# Produces libduoverse_netcode.so
 ```
