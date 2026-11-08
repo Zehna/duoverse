@@ -2,9 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  user-select: none;
-  background-color: #020617;
-  overflow: hidden;
+@layer base {
+  :root {
+    /* Strict Dark HUD Theme (Zinc 950 base) */
+    --background: 240 10% 3.9%;      /* #09090b - zinc-950 */
+    --foreground: 240 5% 96%;        /* #f4f4f5 - zinc-100 */
+
+    --card: 240 6% 10%;              /* #18181b - zinc-900 */
+    --card-foreground: 240 5% 96%;   /* #f4f4f5 - zinc-100 */
+
+    --popover: 240 6% 10%;           /* #18181b - zinc-900 */
+    --popover-foreground: 240 5% 96%;
+
+    --primary: 240 5% 96%;           /* Solid zinc-100 button */
+    --primary-foreground: 240 10% 4%;
+
+    --secondary: 240 4% 16%;         /* #27272a - zinc-800 */
+    --secondary-foreground: 240 5% 96%;
+
+    --muted: 240 4% 16%;             /* #27272a - zinc-800 */
+    --muted-foreground: 240 5% 65%;  /* #a1a1aa - zinc-400 */
+
+    --accent: 240 4% 16%;
+    --accent-foreground: 240 5% 96%;
+
+    --destructive: 347 90% 60%;      /* #f43f5e - rose-500 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 4% 16%;            /* 1px crisp zinc-800 */
+    --input: 240 4% 16%;             /* zinc-800 */
+    --ring: 199 89% 48%;             /* sky-500 active focus */
+
+    --radius: 0.5rem;                /* 8px */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    user-select: none;
+    overflow: hidden;
+  }
 }

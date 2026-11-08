@@ -96,3 +96,21 @@ When generating code or proposing changes in Duoverse:
    - Foundry profile tests: `python3 foundry/tests/test_profile_validation.py`
    - Netcode simulation: `python3 foundry/tests/test_desync_fuzzer.py`
    - APK tooling tests: `python3 tools/apk-tooling/test_pipeline.py`
+
+---
+
+## 5. UI/UX Design System Compliance (`apps/desktop-ui`)
+
+Setiap pembuatan atau modifikasi file komponen antarmuka (`.tsx`, `.css`) di dalam direktori `apps/desktop-ui/` **wajib mematuhi panduan desain di [`.antigravity/ui-design-system.md`](ui-design-system.md)**:
+
+1. **Dilarang Keras "AI Slop":**
+   - Hindari gradien pelangi/neon ungu-pink generik (`from-purple-500 via-pink-500 to-indigo-500`).
+   - Hindari border-radius balon (`rounded-2xl` / `rounded-3xl` / `rounded-full` pada kartu/panel/dialog). Gunakan `rounded-md` (6px) untuk kontrol dan `rounded-lg` (8px) untuk kontainer (maksimal 8–12px).
+   - Hindari bayangan (box-shadow) tebal mengambang yang tidak realistis (`shadow-2xl` / `shadow-indigo-500/50`). Gunakan 1px crisp border (`border-zinc-800/60`).
+2. **Palet Warna Sleek Dark HUD:**
+   - Background utama: `zinc-950` (`#09090b`), permukaan panel: `zinc-900` (`#18181b`).
+   - Aksen status fungsional tunggal: `emerald-500` (Online/Ready/VFS safe), `sky-500` (Active/Streaming), `rose-500` (Error/Anti-cheat failsafe), `amber-500` (Warning/Jitter).
+3. **Hirarki Visual & Micro-Interactions:**
+   - Cover poster game: format 3:4 atau 16:9 dengan overlay gelap transparan saat hover.
+   - Room Code HUD: font monospace, spasi karakter lebar, dan tombol 1-klik salin responsif.
+   - Animasi Framer Motion terukur (spring ringan, transisi 150–200ms, `scale-[0.98]` saat ditekan).
