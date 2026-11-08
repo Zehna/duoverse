@@ -1026,5 +1026,19 @@ mod tests {
             assert!(game.executable_path.ends_with("Game.exe"));
         }
     }
-}
 
+    #[test]
+    fn test_real_windows_scan() {
+        println!("\n=== SCANNING LOCAL WINDOWS REGISTRY & DIRECTORIES ===");
+        let games = scan_all_pc_games();
+        println!("TOTAL REAL GAMES DETECTED: {}", games.len());
+        for (i, g) in games.iter().enumerate() {
+            println!("Game #{}: {} (ID: {}, Platform: {}, Engine: {}, Coop Status: {}, Anti-Cheat Safe: {})",
+                i + 1, g.title, g.id, g.platform, g.engine_display_name, g.coop_status, g.anti_cheat_safe
+            );
+            println!("  Path: {}", g.executable_path);
+            println!("  Dir:  {}", g.install_directory);
+        }
+        println!("=== SCAN FINISHED ===\n");
+    }
+}
