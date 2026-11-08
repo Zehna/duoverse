@@ -2,5 +2,12 @@
   "build": {
     "devUrl": null,
     "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "useHttpsScheme": true
+      }
+    ]
   }
 }

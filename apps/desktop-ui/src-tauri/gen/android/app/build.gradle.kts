@@ -18,7 +18,7 @@ android {
     compileSdk = 37
     namespace = "com.duoverse.launcher"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "com.duoverse.launcher"
         minSdk = 24
         targetSdk = 37
@@ -39,6 +39,7 @@ android {
             }
         }
         getByName("release") {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
             optimization {
                enable = true
             }
