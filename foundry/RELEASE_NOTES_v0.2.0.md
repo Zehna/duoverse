@@ -50,7 +50,7 @@ All automated tests passed with 100% success rate:
 | Platform | File Name | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- |
 | **Windows x64** | `Duoverse_0.2.0_x64-setup.exe` | 2.71 MiB | `0B6F6C5F7D8B03347AAC34B3B17A6E9E7B624C1C647EBE0D57AB266A6DD760BB` |
-| **Android ARM64** | `Duoverse_0.2.0_arm64-release.apk` | 15.95 MiB | `30E33C0DA8A8D5477147C995353EF6E8BA1D2447B1F1C1BEAB3D5472047E93F8` |
+| **Android ARM64** | `Duoverse_0.2.0_arm64-release.apk` | 16.22 MiB | `854F93AEEA4AF3DE790EE8F2BAED60EC07B861B063E24D7C9DF962AEFF2FE72C` |
 
 ---
 
