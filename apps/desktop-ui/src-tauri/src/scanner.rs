@@ -27,7 +27,131 @@ pub struct DetectedGame {
     pub anti_cheat_details: String,
     #[serde(rename = "appId")]
     pub app_id: Option<String>,
+    #[serde(rename = "coopModBadge", skip_serializing_if = "Option::is_none")]
+    pub coop_mod_badge: Option<String>,
+    #[serde(rename = "payloadType", skip_serializing_if = "Option::is_none")]
+    pub payload_type: Option<String>,
 }
+
+// Embedded 230+ Co-op Anything Catalog Database
+static COOP_CATALOG_RAW: &str = include_str!("../../../../foundry/catalog/coop_db.json");
+
+#[derive(Debug, Deserialize, Clone)]
+struct CoopDbCatalog {
+    games: Vec<CoopDbEntry>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct CoopDbEntry {
+    id: String,
+    title: String,
+    slug: String,
+    #[serde(rename = "appId")]
+    app_id: Option<String>,
+    engine: String,
+    #[serde(rename = "qaStatus")]
+    qa_status: String,
+    #[serde(rename = "payloadType")]
+    payload_type: Option<String>,
+    project: String,
+}
+
+/// Matches a detected game against the Co-op Anything catalog database (by AppID or Title).
+/// Returns: (coop_status, coop_mod_badge, payload_type)
+pub fn resolve_coop_mod_info(
+    app_id: Option<&str>,
+    title: &str,
+    engine: &str,
+    anti_cheat_safe: bool,
+) -> (String, Option<String>, Option<String>) {
+    let catalog: Option<CoopDbCatalog> = serde_json::from_str(COOP_CATALOG_RAW).ok();
+
+    let clean_title: String = title
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect();
+    let clean_slug = title.to_lowercase().replace(' ', "-");
+
+    let mut matched_entry: Option<CoopDbEntry> = None;
+
+    if let Some(cat) = catalog {
+        for entry in cat.games {
+            // Priority 1: Match by Steam AppID
+            if let (Some(aid), Some(ref entry_aid)) = (app_id, &entry.app_id) {
+                if !aid.is_empty() && !entry_aid.is_empty() && aid == entry_aid {
+                    matched_entry = Some(entry);
+                    break;
+                }
+            }
+
+            // Priority 2: Match by exact normalized title
+            let entry_clean_title: String = entry
+                .title
+                .to_lowercase()
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect();
+            if !clean_title.is_empty()
+                && !entry_clean_title.is_empty()
+                && (clean_title == entry_clean_title
+                    || clean_title.contains(&entry_clean_title)
+                    || entry_clean_title.contains(&clean_title))
+            {
+                matched_entry = Some(entry);
+                break;
+            }
+
+            // Priority 3: Match by slug
+            if clean_slug.contains(&entry.slug) || entry.slug.contains(&clean_slug) {
+                matched_entry = Some(entry);
+                break;
+            }
+        }
+    }
+
+    if let Some(entry) = matched_entry {
+        let payload = entry.payload_type.unwrap_or_else(|| {
+            if engine.starts_with("unity") {
+                "BepInEx-VFS".into()
+            } else if engine.starts_with("unreal") {
+                "UE4SS-VFS".into()
+            } else {
+                "Native-VFS".into()
+            }
+        });
+
+        let status = if !anti_cheat_safe {
+            "unsupported".to_string()
+        } else {
+            "ready".to_string()
+        };
+
+        (status, Some("VERIFIED CO-OP MOD".to_string()), Some(payload))
+    } else {
+        // If not in catalog, check if engine is Unity or Unreal
+        let is_unity = engine == "unity-mono" || engine == "unity-il2cpp";
+        let is_unreal = engine == "unreal-4" || engine == "unreal-5";
+
+        if is_unity || is_unreal {
+            let payload = if is_unity { "BepInEx-Generic" } else { "UE4SS-Generic" };
+            let status = if !anti_cheat_safe {
+                "unsupported".to_string()
+            } else {
+                "testing".to_string()
+            };
+            (status, Some("GENERIC ENGINE SYNC".to_string()), Some(payload.to_string()))
+        } else {
+            let status = if !anti_cheat_safe {
+                "unsupported".to_string()
+            } else {
+                "testing".to_string()
+            };
+            (status, None, None)
+        }
+    }
+}
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AdbInstalledGame {
@@ -167,13 +291,12 @@ pub fn inspect_custom_game_folder(folder_path: &Path) -> Result<DetectedGame, St
         .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
         .collect::<String>();
 
-    let coop_status = if !inspection.anti_cheat_safe {
-        "unsupported".to_string()
-    } else if inspection.engine == "unity-mono" || inspection.engine == "unity-il2cpp" {
-        "ready".to_string()
-    } else {
-        "testing".to_string()
-    };
+    let (coop_status, coop_mod_badge, payload_type) = resolve_coop_mod_info(
+        None,
+        &folder_name,
+        &inspection.engine,
+        inspection.anti_cheat_safe,
+    );
 
     Ok(DetectedGame {
         id,
@@ -188,6 +311,8 @@ pub fn inspect_custom_game_folder(folder_path: &Path) -> Result<DetectedGame, St
         anti_cheat_safe: inspection.anti_cheat_safe,
         anti_cheat_details: inspection.anti_cheat_details,
         app_id: None,
+        coop_mod_badge,
+        payload_type,
     })
 }
 
@@ -358,13 +483,12 @@ fn parse_steam_appmanifest(acf_path: &Path, steamapps_dir: &Path, steam_root: &P
 
     let cover_url = resolve_steam_cover(steam_root, &app_id);
 
-    let coop_status = if !inspection.anti_cheat_safe {
-        "unsupported".to_string()
-    } else if inspection.engine == "unity-mono" || inspection.engine == "unity-il2cpp" {
-        "ready".to_string()
-    } else {
-        "testing".to_string()
-    };
+    let (coop_status, coop_mod_badge, payload_type) = resolve_coop_mod_info(
+        Some(&app_id),
+        &name,
+        &inspection.engine,
+        inspection.anti_cheat_safe,
+    );
 
     Some(DetectedGame {
         id: format!("steam_{}", app_id),
@@ -379,6 +503,8 @@ fn parse_steam_appmanifest(acf_path: &Path, steamapps_dir: &Path, steam_root: &P
         anti_cheat_safe: inspection.anti_cheat_safe,
         anti_cheat_details: inspection.anti_cheat_details,
         app_id: Some(app_id),
+        coop_mod_badge,
+        payload_type,
     })
 }
 
@@ -499,13 +625,12 @@ fn parse_epic_manifest(item_path: &Path) -> Option<DetectedGame> {
     let inspection = inspect_game_directory(&game_dir, launch_exe);
     let exe_path = inspection.executable_path?;
 
-    let coop_status = if !inspection.anti_cheat_safe {
-        "unsupported".to_string()
-    } else if inspection.engine == "unity-mono" || inspection.engine == "unity-il2cpp" {
-        "ready".to_string()
-    } else {
-        "testing".to_string()
-    };
+    let (coop_status, coop_mod_badge, payload_type) = resolve_coop_mod_info(
+        None,
+        &display_name,
+        &inspection.engine,
+        inspection.anti_cheat_safe,
+    );
 
     Some(DetectedGame {
         id: format!("epic_{}", app_name.to_lowercase()),
@@ -520,6 +645,8 @@ fn parse_epic_manifest(item_path: &Path) -> Option<DetectedGame> {
         anti_cheat_safe: inspection.anti_cheat_safe,
         anti_cheat_details: inspection.anti_cheat_details,
         app_id: Some(app_name),
+        coop_mod_badge,
+        payload_type,
     })
 }
 
@@ -1040,5 +1167,32 @@ mod tests {
             println!("  Dir:  {}", g.install_directory);
         }
         println!("=== SCAN FINISHED ===\n");
+    }
+
+    #[test]
+    fn test_catalog_matching() {
+        // 1. Matched by AppID (Balatro: 2379780)
+        let (status1, badge1, payload1) = resolve_coop_mod_info(Some("2379780"), "Balatro", "custom", true);
+        assert_eq!(status1, "ready");
+        assert_eq!(badge1, Some("VERIFIED CO-OP MOD".to_string()));
+        assert!(payload1.is_some());
+
+        // 2. Matched by Title (Celeste)
+        let (status2, badge2, payload2) = resolve_coop_mod_info(None, "Celeste", "custom", true);
+        assert_eq!(status2, "ready");
+        assert_eq!(badge2, Some("VERIFIED CO-OP MOD".to_string()));
+        assert!(payload2.is_some());
+
+        // 3. Unmatched Unity game -> Generic Engine Sync
+        let (status3, badge3, payload3) = resolve_coop_mod_info(None, "RandomGameX", "unity-mono", true);
+        assert_eq!(status3, "testing");
+        assert_eq!(badge3, Some("GENERIC ENGINE SYNC".to_string()));
+        assert_eq!(payload3, Some("BepInEx-Generic".to_string()));
+
+        // 4. Unmatched Unreal game -> Generic Engine Sync
+        let (status4, badge4, payload4) = resolve_coop_mod_info(None, "RandomGameY", "unreal-4", true);
+        assert_eq!(status4, "testing");
+        assert_eq!(badge4, Some("GENERIC ENGINE SYNC".to_string()));
+        assert_eq!(payload4, Some("UE4SS-Generic".to_string()));
     }
 }

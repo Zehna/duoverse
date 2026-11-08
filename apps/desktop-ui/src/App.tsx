@@ -437,19 +437,35 @@ export function App() {
 
                           {/* Subtle Dark Overlay */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent p-3 flex flex-col justify-end">
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <Badge
-                                variant={
-                                  game.coopStatus === 'ready'
-                                    ? 'online'
-                                    : game.coopStatus === 'unsupported'
-                                    ? 'destructive'
-                                    : 'warning'
-                                }
-                                className="w-fit text-[10px]"
-                              >
-                                {game.coopStatus.toUpperCase()}
-                              </Badge>
+                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                              {game.coopModBadge === 'VERIFIED CO-OP MOD' ? (
+                                <Badge
+                                  variant="online"
+                                  className="w-fit text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]"
+                                >
+                                  VERIFIED CO-OP MOD
+                                </Badge>
+                              ) : game.coopModBadge === 'GENERIC ENGINE SYNC' ? (
+                                <Badge
+                                  variant="warning"
+                                  className="w-fit text-[9px] font-medium bg-sky-500/20 text-sky-300 border-sky-500/40"
+                                >
+                                  GENERIC ENGINE SYNC
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant={
+                                    game.coopStatus === 'ready'
+                                      ? 'online'
+                                      : game.coopStatus === 'unsupported'
+                                      ? 'destructive'
+                                      : 'warning'
+                                  }
+                                  className="w-fit text-[10px]"
+                                >
+                                  {game.coopStatus.toUpperCase()}
+                                </Badge>
+                              )}
                               <Badge variant="default" className="text-[9px] font-mono uppercase">
                                 {game.platform}
                               </Badge>
@@ -485,6 +501,23 @@ export function App() {
                           {selectedGame.appId && (
                             <Badge variant="default" className="text-[10px] font-mono">
                               AppID: {selectedGame.appId}
+                            </Badge>
+                          )}
+                          {selectedGame.coopModBadge && (
+                            <Badge
+                              variant={selectedGame.coopModBadge === 'VERIFIED CO-OP MOD' ? 'online' : 'default'}
+                              className={
+                                selectedGame.coopModBadge === 'VERIFIED CO-OP MOD'
+                                  ? 'text-[10px] font-bold bg-emerald-500/25 text-emerald-300 border-emerald-500/60 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                                  : 'text-[10px] font-medium bg-sky-500/20 text-sky-300 border-sky-500/40'
+                              }
+                            >
+                              {selectedGame.coopModBadge}
+                            </Badge>
+                          )}
+                          {selectedGame.payloadType && (
+                            <Badge variant="secondary" className="text-[10px] font-mono text-zinc-300">
+                              VFS: {selectedGame.payloadType}
                             </Badge>
                           )}
                         </div>

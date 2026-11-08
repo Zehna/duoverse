@@ -110,3 +110,7 @@ desktop.ini
 *.pem
 *.key
 *.cert
+
+# Release Binaries
+releases/
+*.apk

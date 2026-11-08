@@ -16,6 +16,8 @@ export interface DetectedGame {
   antiCheatSafe: boolean;
   antiCheatDetails: string;
   appId?: string | null;
+  coopModBadge?: 'VERIFIED CO-OP MOD' | 'GENERIC ENGINE SYNC' | null;
+  payloadType?: string | null;
 }
 
 export interface AdbInstalledGame {
