@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DuoverseGameProfile",
+  "type": "object",
+  "required": ["id", "name", "engine", "executable_patterns", "anti_cheat_policy", "injection", "sync"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$",
+      "description": "Unique game identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the game"
+    },
+    "engine": {
+      "type": "string",
+      "enum": ["unity-mono", "unity-il2cpp", "unreal-4", "unreal-5", "monogame", "godot", "custom"]
+    },
+    "executable_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of executable filename regexes or exact names (e.g. ['hollow_knight.exe'])"
+    },
+    "anti_cheat_policy": {
+      "type": "object",
+      "required": ["requires_precheck", "abort_on_kernel_driver"],
+      "properties": {
+        "requires_precheck": { "type": "boolean" },
+        "abort_on_kernel_driver": { "type": "boolean" },
+        "known_drivers": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "injection": {
+      "type": "object",
+      "required": ["method", "vfs_enabled"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["suspended_create", "manual_map", "doorstop_vfs"]
+        },
+        "vfs_enabled": { "type": "boolean" },
+        "hook_payloads": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "sync": {
+      "type": "object",
+      "required": ["authority_model", "tick_rate_hz"],
+      "properties": {
+        "authority_model": {
+          "type": "string",
+          "enum": ["host_authority", "deterministic_lockstep"]
+        },
+        "tick_rate_hz": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 120
+        },
+        "client_input_rate_hz": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 120
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "hollow_knight",
+  "name": "Hollow Knight",
+  "engine": "unity-mono",
+  "executable_patterns": [
+    "hollow_knight.exe",
+    "Hollow Knight.exe"
+  ],
+  "anti_cheat_policy": {
+    "requires_precheck": true,
+    "abort_on_kernel_driver": true,
+    "known_drivers": []
+  },
+  "injection": {
+    "method": "doorstop_vfs",
+    "vfs_enabled": true,
+    "hook_payloads": [
+      "core/engine-hooks/unity-bepinex/bin/Duoverse.Unity.dll"
+    ]
+  },
+  "sync": {
+    "authority_model": "host_authority",
+    "tick_rate_hz": 30,
+    "client_input_rate_hz": 60
+  }
+}

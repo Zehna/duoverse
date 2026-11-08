@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "coop-anything": {
+      "command": "python",
+      "args": ["-m", "tools.coop-anything.mcp"],
+      "env": {
+        "COOP_CATALOG_ENABLED": "true"
+      }
+    }
+  }
+}
