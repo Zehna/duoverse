@@ -4,6 +4,10 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Tauri serves the built frontend from its custom protocol
+  // (https://tauri.localhost/). Relative asset paths keep the
+  // bundle working under that scheme instead of assuming a web root.
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {

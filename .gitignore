@@ -45,6 +45,11 @@ Makefile
 # Tauri Build Artifacts
 src-tauri/target/
 apps/desktop-ui/src-tauri/target/
+# Never commit a copy of the Vite dist/ into the generated Android
+# assets folder: Tauri never serves it (no asset-loader domain is
+# configured), it only bloats the APK. The frontend is embedded by
+# tauri_build from apps/desktop-ui/dist/ instead. See ANDROID_BUILD.md.
+apps/desktop-ui/src-tauri/gen/android/app/src/main/assets/
 
 # Game Binaries, Installations & Modded Dumps
 # IMPORTANT: Never commit game assets or proprietary executables

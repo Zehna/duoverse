@@ -1,6 +1,5 @@
 {
   "build": {
-    "devUrl": null,
     "frontendDist": "../dist"
   },
   "app": {

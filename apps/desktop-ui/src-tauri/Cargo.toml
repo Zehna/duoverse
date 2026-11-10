@@ -1,6 +1,6 @@
 [package]
 name = "duoverse-launcher"
-version = "0.2.0"
+version = "0.2.1"
 description = "Duoverse Native Co-op Desktop Launcher"
 authors = ["Benny Wirasanjaya"]
 edition = "2021"
